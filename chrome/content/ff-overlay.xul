@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="chrome://nofix/skin/overlay.css" type="text/css"?>
+<!DOCTYPE overlay SYSTEM "chrome://nofix/locale/overlay.dtd">
+<overlay id="nofix-overlay" xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+  <script src="overlay.js"/>
+  <script src="ff-overlay.js"/>
+
+  <stringbundleset id="stringbundleset">
+    <stringbundle id="nofix-strings" src="chrome://nofix/locale/overlay.properties"/>
+  </stringbundleset>
+
+
+
+
+</overlay>

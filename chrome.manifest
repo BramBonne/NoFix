@@ -1,0 +1,6 @@
+content   nofix                 chrome/content/
+skin      nofix   classic/1.0   chrome/skin/
+locale    nofix   en-US         chrome/locale/en-US/
+
+
+overlay   chrome://browser/content/browser.xul   chrome://nofix/content/ff-overlay.xul
