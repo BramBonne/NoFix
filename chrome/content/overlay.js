@@ -1,6 +1,6 @@
 // NoFix 0.1 by Bram Bonné
 
-const LOG_LEVEL = 3; //0: everything; 0.5: passing & blocking; 1: warning; 2: error; 3: nothing
+const LOG_LEVEL = 0.5; //0: everything; 0.5: passing & blocking; 1: warning; 2: error; 3: nothing
 const log_to_file = true; // Whether blocks & passes should be kept in a file (for statistics)
 const block_notify = false; // Whether the user should be notified of blocks
 const log_subdomain_cookies = false; // Whether it should be logged when a website sets a cookie for its parent domain (log_to_file must be enabled for this)
@@ -341,14 +341,16 @@ function encoding_size_score(string)
 	const punctuation = "~!#%^@&$*_()?-+=";
 	const ascii_lowercase = "abcdefghijklmnopqrstuvwxyz";
 	const ascii_uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	
+	var charset = 0;
     
-    var fAlpha = false;
+    /*var fAlpha = false;
     var fUpper = false
     var fUpperPunct = false
     var fDigit = false
     var fOther = false
     var charset = 0
-
+	
     for (i in string) {
         c = string[i];
         if (ascii_lowercase.indexOf(c) != -1)
@@ -373,10 +375,57 @@ function encoding_size_score(string)
         charset += punctuation.length
     if (fOther)
 	         // printable - (lower + upper + punct + dig)
-		charset += 100 - (26 + 26 + punctuation.length + 10)
+		charset += 100 - (26 + 26 + punctuation.length + 10)*/
+	/*for (i in punctuation) {
+		if (string.indexOf(punctuation[i]) != -1) {
+			charset += punctuation.length
+			break;
+		}
+	}
+	for (i in ascii_lowercase) {
+		if (string.indexOf(ascii_lowercase[i]) != -1) {
+			charset += 26
+			break;
+		}
+	}
+	for (i in ascii_uppercase) {
+		if (string.indexOf(ascii_uppercase[i]) != -1) {
+			charset += 26
+			break;
+		}
+	}
+	for (i =0; i < 10; i++) {
+		if (string.indexOf(i) != -1) {
+			charset += 10
+			break;
+		}
+	}*/
+	checkedstring = string;
+	newstring = checkedstring.replace(/[a-z]+/g,'');
+	if (newstring.length < checkedstring.length) {
+		checkedstring = newstring;
+		charset += 26
+	}
+	newstring = checkedstring.replace(/[A-Z]+/g,'');
+	if (newstring.length < checkedstring.length) {
+		checkedstring = newstring;
+		charset += 26
+	}
+	newstring = checkedstring.replace(/[0-9]+/g,'');
+	if (newstring.length < checkedstring.length) {
+		checkedstring = newstring;
+		charset += 10
+	}
+	newstring = checkedstring.replace(/[~!#%^@&$*_()?\-+=]+/g,'');
+	if (newstring.length < checkedstring.length) {
+		checkedstring = newstring;
+		charset += 17
+	}
+	if (checkedstring.length > 0)
+		charset += 100 - (26+26+17+10);
 
 	bits = Math.log(charset) * (string.length / Math.log(2))
-	var end_single = new Date();
+	
     if (bits >= 128)
         return 0.9
     else if (bits >= 64)
@@ -430,8 +479,15 @@ function is_session_cookie(cookieName, cookieValue)
     if (cookieName.indexOf('sess') >= 0 && cookieValue.length > 10)
         return true;
 	nentropycheck++;
-    if ((0.5*relative_entropy(cookieValue) + encoding_size_score(cookieValue)) >= 0.72)
+	nsingleresponses++;
+	single_start = new Date();
+    if ((0.5*relative_entropy(cookieValue) + encoding_size_score(cookieValue)) >= 0.72) {
+    	single_end = new Date();
+        singleResponseDelays += single_end.getTime() - single_start.getTime()
         return true;
+    }
+    single_end = new Date();
+    singleResponseDelays += single_end.getTime() - single_start.getTime()
     // If the previous tests failed, treat the cookie as not containing a SID
     return false;
 }
@@ -443,12 +499,35 @@ function add_cookie(domain, cookie)
     cookieData = cookieData.split('=');
     var cookieName = cookieData[0];
     var cookieValue = cookieData.slice(1).join('='); // Because '=' might appear inside the value
-    if (!SKIP_SESSION_ID_CHECK && !is_session_cookie(cookieName, cookieValue))
+    if (!SKIP_SESSION_ID_CHECK && !is_session_cookie(cookieName, cookieValue)) {
         return; // Only add session cookies
+    }
     var expirationDate = extract_expiration_date(cookie);
     log("Cookie being set: " + cookie + " for domain " + domain);
     var start = 
     db_add_cookie(domain, cookieName, cookieValue, expirationDate);
+}
+
+function handle_new_cookie(cookie, requestdomain)
+{ // Allows for asynchronous handling of new cookies
+	// Search for a domain in the cookie itself (to be able to set cookies for a parent domain)
+	cookiedomain = extract_cookie_domain(cookie);
+    if (cookiedomain == null)
+        cookiedomain = requestdomain;
+    else { // Check whether the parent domain dictated by the cookie is valid
+        // The second part of this if-test will almost never be the case (it never occured while testing the plugin), so we let lazy evaluation do its work
+        if (!is_subdomain(requestdomain, cookiedomain) && !is_subdomain(cookiedomain, requestdomain)) {
+            log("Probably an evil domain (" + domain + ") trying to set a cookie: " + cookie, 1);
+            return;
+        } else
+        	// Log this subdomain setting for statistical purposes
+        	log_subdomain_cookie(cookiedomain, requestdomain);
+    }
+    // Everything went well, now it's time to add the cookie to our database.
+    // The reason we add the cookie regardless of whether it's a session
+    // cookie is that later adaptations/configuration settings might need
+    // the cookie anyhow.
+    add_cookie(cookiedomain, cookie);
 }
 
 function cookie_is_allowed(domain, cookieName, cookieValue)
@@ -533,29 +612,8 @@ var httpResponseObserver =
         var requestdomain = httpChannel.getRequestHeader("Host").split(':')[0];
         // Iterate over all cookies found
         for (i in cookies) {
-        	nsingleresponses++;
-        	single_start = new Date();
             var cookie = cookies[i];
-            // Search for a domain in the cookie itself (to be able to set cookies for a parent domain)
-            cookiedomain = extract_cookie_domain(cookie);
-            if (cookiedomain == null)
-                cookiedomain = requestdomain;
-            else { // Check whether the parent domain dictated by the cookie is valid
-                // The second part of this if-test will almost never be the case (it never occured while testing the plugin), so we let lazy evaluation do its work
-                if (!is_subdomain(requestdomain, cookiedomain) && !is_subdomain(cookiedomain, requestdomain)) {
-                    log("Probably an evil domain (" + domain + ") trying to set a cookie: " + cookie, 1);
-                    return;
-                } else
-                	// Log this subdomain setting for statistical purposes
-                	log_subdomain_cookie(cookiedomain, requestdomain);
-            }
-            // Everything went well, now it's time to add the cookie to our database.
-            // The reason we add the cookie regardless of whether it's a session
-            // cookie is that later adaptations/configuration settings might need
-            // the cookie anyhow.
-            add_cookie(cookiedomain, cookie);
-            single_end = new Date();
-            singleResponseDelays += single_end.getTime() - single_start.getTime()
+            handle_new_cookie(cookies[i], requestdomain);
         }
         var end = new Date();
         delay = end.getTime() - start.getTime()
