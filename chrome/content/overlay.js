@@ -1,6 +1,6 @@
 // NoFix 0.1 by Bram Bonné
 
-const LOG_LEVEL = 0.5; //0: everything; 0.5: passing & blocking; 1: warning; 2: error; 3: nothing
+const LOG_LEVEL = 1; //0: everything; 0.5: passing & blocking; 1: warning; 2: error; 3: nothing
 const log_to_file = true; // Whether blocks & passes should be kept in a file (for statistics)
 const block_notify = false; // Whether the user should be notified of blocks
 const log_subdomain_cookies = false; // Whether it should be logged when a website sets a cookie for its parent domain (log_to_file must be enabled for this)
@@ -317,13 +317,10 @@ function relative_entropy(string)
     entropy = 0;
     // Count equal characters
     var bins = [];
-    for (i in string) {
-        c = string[i];
-        if (c in bins)
-            bins[c] += 1;
-        else
-            bins[c] = 1;
-    }
+    for (i in string)
+    	bins[string[i]] = 0;
+    for (i in string)
+        bins[string[i]] += 1;
     for (i in bins) {
         prob = bins[i] / string.length;
         entropy -= prob * Math.log(prob);
@@ -344,62 +341,6 @@ function encoding_size_score(string)
 	
 	var charset = 0;
     
-    /*var fAlpha = false;
-    var fUpper = false
-    var fUpperPunct = false
-    var fDigit = false
-    var fOther = false
-    var charset = 0
-	
-    for (i in string) {
-        c = string[i];
-        if (ascii_lowercase.indexOf(c) != -1)
-            fAlpha = true;
-        else if (ascii_uppercase.indexOf(c) != -1)
-            fUpper = true;
-        else if (!isNaN(c))
-            fDigit = true;
-        else if (punctuation.indexOf(c) != -1)
-            fUpperPunct = true;
-        else
-            fOther = true;
-    }
-    
-    if (fAlpha)
-        charset += 26;
-    if (fUpper)
-        charset += 26;
-    if (fDigit)
-        charset += 10
-    if (fUpperPunct)
-        charset += punctuation.length
-    if (fOther)
-	         // printable - (lower + upper + punct + dig)
-		charset += 100 - (26 + 26 + punctuation.length + 10)*/
-	/*for (i in punctuation) {
-		if (string.indexOf(punctuation[i]) != -1) {
-			charset += punctuation.length
-			break;
-		}
-	}
-	for (i in ascii_lowercase) {
-		if (string.indexOf(ascii_lowercase[i]) != -1) {
-			charset += 26
-			break;
-		}
-	}
-	for (i in ascii_uppercase) {
-		if (string.indexOf(ascii_uppercase[i]) != -1) {
-			charset += 26
-			break;
-		}
-	}
-	for (i =0; i < 10; i++) {
-		if (string.indexOf(i) != -1) {
-			charset += 10
-			break;
-		}
-	}*/
 	checkedstring = string;
 	newstring = checkedstring.replace(/[a-z]+/g,'');
 	if (newstring.length < checkedstring.length) {
