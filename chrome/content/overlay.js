@@ -1,6 +1,6 @@
 // NoFix 0.1 by Bram Bonné
 
-const LOG_LEVEL = 2; //0: everything; 0.5: passing & blocking; 1: warning; 2: error; 3: nothing
+const LOG_LEVEL = 1; //0: everything; 0.5: passing & blocking; 1: warning; 2: error; 3: nothing
 const log_to_file = true; // Whether blocks & passes should be kept in a file (for statistics)
 const block_notify = false; // Whether the user should be notified of blocks
 const log_subdomain_cookies = false; // Whether it should be logged when a website sets a cookie for its parent domain (log_to_file must be enabled for this)
@@ -28,10 +28,10 @@ var singleRequestDelays = 0;
 var singleResponseDelays = 0;
 var nrequests = 0;
 var nresponses = 0;
-var nsinglerequests = 0;
-var nsingleresponses = 0;
-var nentropycheck = 0;
 var cookiesetcount = 0;
+var ncookierequests = 0;
+var ncookieresponses = 0;
+var nsinglerequests = 0;
 
 function log(msg, level)
 { // Log messages to the console in firefox
@@ -420,16 +420,8 @@ function is_session_cookie(cookieName, cookieValue)
     // can be pretty sure this is a SID, as long as the value is long enough
     if (cookieName.indexOf('sess') >= 0 && cookieValue.length > 10)
         return true;
-	nentropycheck++;
-	nsingleresponses++;
-	single_start = new Date();
-    if ((0.5*relative_entropy(cookieValue) + encoding_size_score(cookieValue)) >= 0.72) {
-    	single_end = new Date();
-        singleResponseDelays += single_end.getTime() - single_start.getTime()
+    if ((0.5*relative_entropy(cookieValue) + encoding_size_score(cookieValue)) >= 0.72)
         return true;
-    }
-    single_end = new Date();
-    singleResponseDelays += single_end.getTime() - single_start.getTime()
     // If the previous tests failed, treat the cookie as not containing a SID
     return false;
 }
@@ -437,16 +429,19 @@ function is_session_cookie(cookieName, cookieValue)
 function add_cookie(domain, cookie)
 { // Extracts the necessary information from the cookie and adds it to the database
     cookiesetcount++;
-    var cookieData = /^[^;]+/.exec(cookie)[0];
-    cookieData = cookieData.split('=');
-    var cookieName = cookieData[0];
-    var cookieValue = cookieData.slice(1).join('='); // Because '=' might appear inside the value
+    var split1 = cookie.indexOf('=');
+    var split2 = cookie.indexOf(';');
+    if (split2 <= split1) {
+    	log("Probably an evil cookie from " + domain + ": " + cookie, 1);
+    	return;
+    }
+    var cookieName = cookie.substring(0, split1);
+    var cookieValue = cookie.substring(split1+1, split2);
     if (!SKIP_SESSION_ID_CHECK && !is_session_cookie(cookieName, cookieValue)) {
         return; // Only add session cookies
     }
     var expirationDate = extract_expiration_date(cookie);
     log("Cookie being set: " + cookie + " for domain " + domain);
-    var start = 
     db_add_cookie(domain, cookieName, cookieValue, expirationDate);
 }
 
@@ -459,7 +454,7 @@ function handle_new_cookie(cookie, requestdomain)
     else { // Check whether the parent domain dictated by the cookie is valid
         // The second part of this if-test will almost never be the case (it never occured while testing the plugin), so we let lazy evaluation do its work
         if (!is_subdomain(requestdomain, cookiedomain) && !is_subdomain(cookiedomain, requestdomain)) {
-            log("Probably an evil domain (" + domain + ") trying to set a cookie: " + cookie, 1);
+            log("Probably an evil domain (" + requestdomain + ") trying to set a cookie: " + cookie, 1);
             return;
         } else
         	// Log this subdomain setting for statistical purposes
@@ -492,6 +487,7 @@ var httpRequestObserver =
             log("Not a HTTP request, while httpRequestObserver was called: " + subject + ", " + topic, 0.5);
             return;
         }
+        nrequests++;
         var httpChannel = subject.QueryInterface(Components.interfaces.nsIHttpChannel);
         var cookieSvc = Components.classes["@mozilla.org/cookieService;1"].getService(Components.interfaces.nsICookieService);
         //                                                  strip port
@@ -502,7 +498,7 @@ var httpRequestObserver =
             // No cookie sent with the request, nothing to be done
             return;
         }
-        nrequests++;
+        ncookierequests++;
         var start = new Date();
         var newCookie = "";
         var cookies = originalCookie.split(";");
@@ -539,7 +535,8 @@ var httpResponseObserver =
     observe: function(subject, topic, data)
     {
         if (topic != "http-on-examine-response") // Not a response
-            return;  
+            return;
+        nresponses++;
         var httpChannel = subject.QueryInterface(Components.interfaces.nsIHttpChannel);
         // Search for cookies being set
         try {
@@ -549,7 +546,7 @@ var httpResponseObserver =
         }
         var start = new Date();
         // If we got this far, cookies were found
-        nresponses++;
+        ncookieresponses++;
         // Get the domain where the request came from            remove port
         var requestdomain = httpChannel.getRequestHeader("Host").split(':')[0];
         // Iterate over all cookies found
@@ -561,7 +558,7 @@ var httpResponseObserver =
         delay = end.getTime() - start.getTime()
         responseDelays += delay
         log_delay(delay, requestdomain, false);
-        dump("Delays: req " + requestDelays*1.0/nrequests + " (single: " + singleRequestDelays*1.0/nsinglerequests + "), resp " + responseDelays*1.0/nresponses + " (single : " + singleResponseDelays*1.0/nsingleresponses + ") Entropy checks: " + nentropycheck*100.0/nsingleresponses + "%\n");
+        dump("Delays: req " + requestDelays*1.0/ncookierequests + " (single: " + singleRequestDelays*1.0/nsinglerequests + "), resp " + responseDelays*1.0/ncookieresponses + ") And for all requests/responses: " + requestDelays*1.0/nrequests + "/" + responseDelays*1.0/nresponses + "\n");
     }
 };
 
@@ -651,24 +648,25 @@ start = new Date();
 var errorstring = ""
 for (a = 0; a < 500; a++) {
 	errorstring = "";
-	try {
-		const session_cookies = ["phpsessid=20", "definitely_session=n0p4ssw0rd1sth1s", "randomythingy=hfvcIjmcJDX9LzdQ", "reddit=4080389%2C2011-02-14T08%3A36%3A21%2C8fe3c8ea18bd2b8a82d1aaac192279d5d8aa6a4d"]
+	//try {
+		const session_cookies = ["phpsessid=20;domain=google.be", "definitely_session=n0p4ssw0rd1sth1s;domain=google.com", "randomythingy=hfvcIjmcJDX9LzdQ", "reddit=4080389%2C2011-02-14T08%3A36%3A21%2C8fe3c8ea18bd2b8a82d1aaac192279d5d8aa6a4d"]
 		for (d in session_cookies) {
 			cook = session_cookies[d].split('=');
 			if (!is_session_cookie(cook[0], cook[1])) {
 				errorstring += "Not a session cookie: " + session_cookies[d] + "\n"
 			}
+			handle_new_cookie(session_cookies[d], "www.google.be");
 		}
 		const non_session_cookies = ["locale=eenheelmoeilijkelangetaal", "hi=#0Rt"];
 		for (d in non_session_cookies) {
-			//dump(i);
 			cook = non_session_cookies[d].split('=');
 			if (is_session_cookie(cook[0], cook[1]))
 				errorstring += "A session cookie: " + non_session_cookies[d] + "\n"
+			handle_new_cookie(non_session_cookies[d], "www.google.be");
 		}
-	} catch (e) {
-		errorstring += e;
-	}
+	//} catch (e) {
+	//	errorstring += e;
+	//}
 }
 end = new Date();
 delay = end.getTime() - start.getTime()
