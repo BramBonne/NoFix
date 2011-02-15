@@ -4,7 +4,7 @@
     <em:id>nofix@cs.kuleuven.be</em:id>
     <em:type>2</em:type>
     <em:name>NoFix</em:name>
-    <em:version>0.1</em:version>
+    <em:version>0.9</em:version>
     <em:creator>Bram Bonné</em:creator>
     <em:contributor></em:contributor>
     <em:aboutURL>chrome://nofix/content/about.xul</em:aboutURL>

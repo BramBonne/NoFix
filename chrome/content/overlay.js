@@ -178,6 +178,10 @@ function db_update_cookie(domain, cookie, value, expdate)
     stmt.params.value = value;
     stmt.params.expdate = expdate;
     try {
+        // First write it to the cache. Since database inserts are handled asynchronously,
+    	// we want the next request to be able to see the cookie, regardless of
+    	// whether it is already written to the database
+    	cookieWriteCache.push(domain+";"+cookie+";"+value);
     	// Execute this query asynchronously, so we don't let the user wait
         stmt.executeAsync({
         	handleError:
@@ -274,17 +278,17 @@ function parse_date(dateString)
     value = Date.parse(dateString);
     if (!isNaN(value))
         return value;
-    log("Extra date parsing needed for " + dateString);
+    log("Extra date parsing needed for " + dateString, 1);
     // JavaScript itself was unable to parse the date, this function will take a little longer
     // Some websites set the date like 30-Nov-1988, whereas it should be 30 Nov 1988
     dateString = dateString.replace(/-/gi,' ');
     dateString = dateString.replace(/GMT /, 'GMT-');// Undo the replacement for GMT (my regex-fu is not that great)
     value = Date.parse(dateString);
-    log("Newly parsed: " + dateString);
+    log("Newly parsed: " + dateString, 1);
     if (!isNaN(value))
         return value;
     // If all fails, make the cookie persistent for a month (this is a compromise)
-    log("Parsing of date "+dateString+" failed, making it valid for a month.", 1);
+    log("Parsing of date "+dateString+" failed, making it valid for a month.", 1.5);
     var now = new Date();
     return now.getTime() + 30*24*60*60*1000;
 }
@@ -437,7 +441,7 @@ function add_cookie(domain, cookie)
     }
     var cookieName = cookie.substring(0, split1);
     var cookieValue = cookie.substring(split1+1, split2);
-    if (!SKIP_SESSION_ID_CHECK && !is_session_cookie(cookieName, cookieValue)) {
+    if (!is_session_cookie(cookieName, cookieValue) && !SKIP_SESSION_ID_CHECK) {
         return; // Only add session cookies
     }
     var expirationDate = extract_expiration_date(cookie);
@@ -665,6 +669,7 @@ if (TEST_PLUGIN) {
 					errorstring += "A session cookie: " + non_session_cookies[d] + "\n"
 				handle_new_cookie(non_session_cookies[d], "www.google.be");
 			}
+			parse_date("30-Nov-1988");
 		//} catch (e) {
 		//	errorstring += e;
 		//}
