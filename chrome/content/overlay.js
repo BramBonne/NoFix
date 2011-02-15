@@ -1,6 +1,6 @@
 // NoFix 0.1 by Bram Bonné
 
-const LOG_LEVEL = 1; //0: everything; 0.5: passing & blocking; 1: warning; 2: error; 3: nothing
+const LOG_LEVEL = 2; //0: everything; 0.5: passing & blocking; 1: warning; 2: error; 3: nothing
 const log_to_file = true; // Whether blocks & passes should be kept in a file (for statistics)
 const block_notify = false; // Whether the user should be notified of blocks
 const log_subdomain_cookies = false; // Whether it should be logged when a website sets a cookie for its parent domain (log_to_file must be enabled for this)
@@ -317,10 +317,13 @@ function relative_entropy(string)
     entropy = 0;
     // Count equal characters
     var bins = [];
-    for (i in string)
-    	bins[string[i]] = 0;
-    for (i in string)
-        bins[string[i]] += 1;
+    for (i in string) {
+        c = string[i];
+        if (c in bins)
+            bins[c] += 1;
+        else
+            bins[c] = 1;
+    }
     for (i in bins) {
         prob = bins[i] / string.length;
         entropy -= prob * Math.log(prob);
@@ -341,8 +344,8 @@ function encoding_size_score(string)
 	
 	var charset = 0;
     
-	checkedstring = string;
-	newstring = checkedstring.replace(/[a-z]+/g,'');
+	var checkedstring = string//.substring(0, string.length);
+	var newstring = checkedstring.replace(/[a-z]+/g,'');
 	if (newstring.length < checkedstring.length) {
 		checkedstring = newstring;
 		charset += 26
@@ -395,16 +398,14 @@ function is_session_cookie(cookieName, cookieValue)
     // Check if the cookie is a well-known *non*-SID name
     const known_not_sid = ['locale','skin','fontsize','x-referer','pref','act','presence'];
     for (i in known_not_sid) {
-        not_sid = known_not_sid[i];
-        if (cookieName == not_sid)
+        if (cookieName == known_not_sid[i])
             return false;
     }
     
     // Check if the cookie name is a well-known SID name
     const known_sid = ['phpsessid','aspsessionid', 'asp.net_session', 'jspsession','aspxanonymous'];
     for (i in known_sid) {
-        sid = known_sid[i];
-        if (cookieName == sid)
+        if (cookieName == known_sid[i])
             return true;
     }
     // Difference from original code: do not check for values which are common
@@ -644,6 +645,35 @@ observerService.addObserver(httpResponseObserver, "http-on-examine-response", fa
 observerService.addObserver(shutdownObserver, "quit-application-requested", false);
 // Add the observer for private browsing mode
 observerService.addObserver(privateBrowsingObserver, "private-browsing", false);
+
+// TEMPORARY DEBUG CODE, TODO: REMOVE ME!
+start = new Date();
+var errorstring = ""
+for (a = 0; a < 500; a++) {
+	errorstring = "";
+	try {
+		const session_cookies = ["phpsessid=20", "definitely_session=n0p4ssw0rd1sth1s", "randomythingy=hfvcIjmcJDX9LzdQ", "reddit=4080389%2C2011-02-14T08%3A36%3A21%2C8fe3c8ea18bd2b8a82d1aaac192279d5d8aa6a4d"]
+		for (d in session_cookies) {
+			cook = session_cookies[d].split('=');
+			if (!is_session_cookie(cook[0], cook[1])) {
+				errorstring += "Not a session cookie: " + session_cookies[d] + "\n"
+			}
+		}
+		const non_session_cookies = ["locale=eenheelmoeilijkelangetaal", "hi=#0Rt"];
+		for (d in non_session_cookies) {
+			//dump(i);
+			cook = non_session_cookies[d].split('=');
+			if (is_session_cookie(cook[0], cook[1]))
+				errorstring += "A session cookie: " + non_session_cookies[d] + "\n"
+		}
+	} catch (e) {
+		errorstring += e;
+	}
+}
+end = new Date();
+delay = end.getTime() - start.getTime()
+alert("Delay was: " + delay + "//" + errorstring);
+// END OF TEMPORARY DEBUG CODE
 
 // All done
 log("NoFix plugin started");
