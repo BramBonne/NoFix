@@ -1,4 +1,4 @@
-// NoFix 0.1 by Bram Bonné
+// NoFix 0.9 by Bram Bonné
 
 const LOG_LEVEL = 1; //0: everything; 0.5: passing & blocking; 1: warning; 2: error; 3: nothing
 const log_subdomain_cookies = false; // Whether it should be logged when a website sets a cookie for its parent domain (file logging must be enabled for this)
@@ -61,8 +61,6 @@ function log_file_UI(cookie, domain, passed)
         logString += ";"+cookie+";"+domain+"=\n";
         logFile.write(logString, logString.length);
     }
-    if (!passed && block_notify)
-        alert("A cookie was blocked: " + cookie + " for domain " + domain);
 }
 
 function log_subdomain_cookie(subdomain, parentdomain)
