@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
+ 
+<prefwindow id="nofix-prefs"
+     title="NoFix preferences"
+     xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+ 
+<prefpane id="nofix-pane" label="NoFix preferences">
+  <preferences>
+    <preference id="pref_sessidonly" name="extensions.nofix.sessidonly" type="bool"/>
+  </preferences>
+ 
+  <hbox align="center">
+    <label control="sessidonly" value="Only block session ID's (default: on): "/>
+    <checkbox preference="pref_sessidonly" id="sessidonly" />
+  </hbox>
+</prefpane>
+ 
+</prefwindow>

@@ -6,7 +6,6 @@ const block_notify = false; // Whether the user should be notified of blocks
 const log_subdomain_cookies = false; // Whether it should be logged when a website sets a cookie for its parent domain (log_to_file must be enabled for this)
 const log_delays = true; // Whether delays incurred by the extension should be logged
 const TEST_PLUGIN = false; // Will run some tests and output the result in an alert before starting FF
-const SKIP_SESSION_ID_CHECK = false; // If this is true, all cookies will be checked (not only the ones containing session ID's)
 
 // Database
 var storageService = null;
@@ -441,7 +440,7 @@ function add_cookie(domain, cookie)
     }
     var cookieName = cookie.substring(0, split1);
     var cookieValue = cookie.substring(split1+1, split2);
-    if (!is_session_cookie(cookieName, cookieValue) && !SKIP_SESSION_ID_CHECK) {
+    if (prefManager.getBoolPref("extensions.nofix.sessidonly") && !is_session_cookie(cookieName, cookieValue)) {
         return; // Only add session cookies
     }
     var expirationDate = extract_expiration_date(cookie);
@@ -476,7 +475,7 @@ function cookie_is_allowed(domain, cookieName, cookieValue)
 	// Check if it is in our database
 	if (db_cookie_is_valid(domain, cookieName, cookieValue))
 		return true; // Cookie is in the cookie database
-    else if (!SKIP_SESSION_ID_CHECK && !is_session_cookie(cookieName, cookieValue))
+    else if (prefManager.getBoolPref("nofix.sessidonly") && !is_session_cookie(cookieName, cookieValue))
         return true; // Only block session cookies
     // Cookie is a session cookie, and is not in our database
     else
@@ -538,6 +537,10 @@ var httpResponseObserver =
 { // Called whenever a HTTP response is received
     observe: function(subject, topic, data)
     {
+    	if(prefManager.getBoolPref("extensions.nofix.sessidonly"))
+    		dump("On");
+		else
+			dump("Off");
         if (topic != "http-on-examine-response") // Not a response
             return;
         nresponses++;
@@ -618,6 +621,10 @@ var privateBrowsingObserver =
 /*
  * Plugin initialization starts here
  */
+ 
+// Load preferences
+var prefManager = Components.classes["@mozilla.org/preferences-service;1"]
+                                .getService(Components.interfaces.nsIPrefBranch);
 
 // Create the database connection
 normalDb = db_create("nofix");
