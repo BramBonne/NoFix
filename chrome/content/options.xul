@@ -8,11 +8,16 @@
 <prefpane id="nofix-pane" label="NoFix preferences">
   <preferences>
     <preference id="pref_sessidonly" name="extensions.nofix.sessidonly" type="bool"/>
+    <preference id="pref_logtofile" name="extensions.nofix.logtofile" type="bool"/>
   </preferences>
  
   <hbox align="center">
     <label control="sessidonly" value="Only block session ID's (default: on): "/>
     <checkbox preference="pref_sessidonly" id="sessidonly" />
+  </hbox>
+  <hbox align="center">
+    <label control="logtofile" value="Gather statistics (saved in nofix.log): "/>
+    <checkbox preference="pref_logtofile" id="logtofile" />
   </hbox>
 </prefpane>
  

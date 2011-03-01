@@ -1,9 +1,8 @@
 // NoFix 0.1 by Bram Bonné
 
 const LOG_LEVEL = 1; //0: everything; 0.5: passing & blocking; 1: warning; 2: error; 3: nothing
-const log_to_file = true; // Whether blocks & passes should be kept in a file (for statistics)
 const block_notify = false; // Whether the user should be notified of blocks
-const log_subdomain_cookies = false; // Whether it should be logged when a website sets a cookie for its parent domain (log_to_file must be enabled for this)
+const log_subdomain_cookies = false; // Whether it should be logged when a website sets a cookie for its parent domain (file logging must be enabled for this)
 const log_delays = true; // Whether delays incurred by the extension should be logged
 const TEST_PLUGIN = false; // Will run some tests and output the result in an alert before starting FF
 
@@ -55,7 +54,7 @@ function log(msg, level)
 function log_file_UI(cookie, domain, passed)
 { // Log passes and blocks to a logfile, for later statistics
   // Does not log when in private browsing mode
-    if (log_to_file && !private_browsing) {
+    if (prefManager.getBoolPref("extensions.nofix.logtofile") && !private_browsing) {
         if (passed)
             logString = "P"
         else
@@ -70,7 +69,7 @@ function log_file_UI(cookie, domain, passed)
 function log_subdomain_cookie(subdomain, parentdomain)
 { // Log setting of a cookie for a parent domain to a logfile
   // Does not log when in private browsing mode
-    if (log_to_file && log_subdomain_cookies && !private_browsing) {
+    if (prefManager.getBoolPref("extensions.nofix.logtofile") && log_subdomain_cookies && !private_browsing) {
         logString = "S;" + subdomain + ";" + parentdomain + ";" + cookiesetcount + "=\n";
         dump(logString);
         logFile.write(logString, logString.length);
@@ -79,7 +78,7 @@ function log_subdomain_cookie(subdomain, parentdomain)
 
 function log_delay(millisecs, domain, isRequest)
 { // Log delays incurred by the extension
-    if (log_to_file && log_delays) {
+    if (prefManager.getBoolPref("extensions.nofix.logtofile") && log_delays) {
         if (isRequest)
             logString = "D"
         else
@@ -475,7 +474,7 @@ function cookie_is_allowed(domain, cookieName, cookieValue)
 	// Check if it is in our database
 	if (db_cookie_is_valid(domain, cookieName, cookieValue))
 		return true; // Cookie is in the cookie database
-    else if (prefManager.getBoolPref("nofix.sessidonly") && !is_session_cookie(cookieName, cookieValue))
+    else if (prefManager.getBoolPref("extensions.nofix.sessidonly") && !is_session_cookie(cookieName, cookieValue))
         return true; // Only block session cookies
     // Cookie is a session cookie, and is not in our database
     else
@@ -537,10 +536,6 @@ var httpResponseObserver =
 { // Called whenever a HTTP response is received
     observe: function(subject, topic, data)
     {
-    	if(prefManager.getBoolPref("extensions.nofix.sessidonly"))
-    		dump("On");
-		else
-			dump("Off");
         if (topic != "http-on-examine-response") // Not a response
             return;
         nresponses++;
@@ -588,13 +583,9 @@ var shutdownObserver =
         } catch (e) {
             log ("Could not close private database: " +e, 2);
         }
-        if (log_to_file) {
-            try {
-                logFile.close();
-            } catch (e) {
-                log("Could not close log file: " +e, 2);
-            }
-        }
+        try {
+            logFile.close();
+        } catch (e) {}
         log("Cleanup ready");
     }
 }
@@ -631,18 +622,16 @@ normalDb = db_create("nofix");
 currentDb = normalDb;
     
 // Open the log file
-if (log_to_file) {
-    file = Components.classes["@mozilla.org/file/directory_service;1"]  
-                      .getService(Components.interfaces.nsIProperties)  
-                      .get("ProfD", Components.interfaces.nsIFile);  
-    file.append("nofix.log");
-    logFile = Components.classes["@mozilla.org/network/file-output-stream;1"].createInstance(Components.interfaces.nsIFileOutputStream);
-    // Append to file
-    try {
-        logFile.init(file, 0x02 | 0x10, 0666, 0);
-    } catch(e) { // File does not yet exist, create it
-        logFile.init(file, 0x02 | 0x08 | 0x20, 0666, 0);
-    }
+file = Components.classes["@mozilla.org/file/directory_service;1"]  
+                  .getService(Components.interfaces.nsIProperties)  
+                  .get("ProfD", Components.interfaces.nsIFile);  
+file.append("nofix.log");
+logFile = Components.classes["@mozilla.org/network/file-output-stream;1"].createInstance(Components.interfaces.nsIFileOutputStream);
+// Append to file
+try {
+    logFile.init(file, 0x02 | 0x10, 0666, 0);
+} catch(e) { // File does not yet exist, create it
+    logFile.init(file, 0x02 | 0x08 | 0x20, 0666, 0);
 }
                       
 // Add the observers for HTTP requests
