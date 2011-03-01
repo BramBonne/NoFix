@@ -1,7 +1,6 @@
 // NoFix 0.1 by Bram Bonné
 
 const LOG_LEVEL = 1; //0: everything; 0.5: passing & blocking; 1: warning; 2: error; 3: nothing
-const block_notify = false; // Whether the user should be notified of blocks
 const log_subdomain_cookies = false; // Whether it should be logged when a website sets a cookie for its parent domain (file logging must be enabled for this)
 const log_delays = true; // Whether delays incurred by the extension should be logged
 const TEST_PLUGIN = false; // Will run some tests and output the result in an alert before starting FF
