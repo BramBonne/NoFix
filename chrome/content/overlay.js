@@ -560,7 +560,9 @@ NoFix.httpResponseObserver =
         for (i in cookies) {
             var cookie = cookies[i];
             var added = NoFix.handle_new_cookie(cookies[i], requestdomain);
-            if (NoFix.prefManager.getBoolPref("extensions.nofix.preventhijacking")) { 
+            if (NoFix.prefManager.getBoolPref("extensions.nofix.preventhijacking")) {
+            	// All added (session) cookies should be marked HttpOnly so JavaScript can't access them.
+            	// This way, we have Session Hijacking protection as per Nick Nikiforakis' paper.
             	if (added)
             		newResponseHeader += cookie + "; HttpOnly" + "\n";
             	else
