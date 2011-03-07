@@ -9,6 +9,7 @@
   <preferences>
     <preference id="pref_sessidonly" name="extensions.nofix.sessidonly" type="bool"/>
     <preference id="pref_logtofile" name="extensions.nofix.logtofile" type="bool"/>
+    <preference id="pref_preventhijacking" name="extensions.nofix.preventhijacking" type="bool"/>
   </preferences>
  
   <hbox align="center">
@@ -18,6 +19,10 @@
   <hbox align="center">
     <label control="logtofile" value="Gather statistics (saved in nofix.log): "/>
     <checkbox preference="pref_logtofile" id="logtofile" />
+  </hbox>
+  <hbox align="center">
+    <label control="preventhijacking" value="Also prevent Session Hijacking attacks: "/>
+    <checkbox preference="pref_preventhijacking" id="preventhijacking" />
   </hbox>
 </prefpane>
  

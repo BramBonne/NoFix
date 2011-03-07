@@ -232,6 +232,7 @@ NoFix.db_add_cookie = function(domain, cookie, value, expdate)
     	// Cookie is already in the database, update it
     	NoFix.db_update_cookie(domain, cookie, value, expdate);
     }
+    return true;
 }
 
 NoFix.db_cookie_is_valid = function(domain, cookie, value)
@@ -435,16 +436,16 @@ NoFix.add_cookie = function(domain, cookie)
     var split2 = cookie.indexOf(';');
     if (split2 <= split1) {
     	NoFix.log("Probably an evil cookie from " + domain + ": " + cookie, 1);
-    	return;
+    	return false;
     }
     var cookieName = cookie.substring(0, split1);
     var cookieValue = cookie.substring(split1+1, split2);
     if (NoFix.prefManager.getBoolPref("extensions.nofix.sessidonly") && !NoFix.is_session_cookie(cookieName, cookieValue)) {
-        return; // Only add session cookies
+        return false; // Only add session cookies
     }
     var expirationDate = NoFix.extract_expiration_date(cookie);
     NoFix.log("Cookie being set: " + cookie + " for domain " + domain);
-    NoFix.db_add_cookie(domain, cookieName, cookieValue, expirationDate);
+    return NoFix.db_add_cookie(domain, cookieName, cookieValue, expirationDate);
 }
 
 NoFix.handle_new_cookie = function(cookie, requestdomain)
@@ -457,7 +458,7 @@ NoFix.handle_new_cookie = function(cookie, requestdomain)
         // The second part of this if-test will almost never be the case (it never occured while testing the plugin), so we let lazy evaluation do its work
         if (!NoFix.is_subdomain(requestdomain, cookiedomain) && !NoFix.is_subdomain(cookiedomain, requestdomain)) {
             NoFix.log("Probably an evil domain (" + requestdomain + ") trying to set a cookie: " + cookie, 1);
-            return;
+            return false;
         } else
         	// Log this subdomain setting for statistical purposes
         	NoFix.log_subdomain_cookie(cookiedomain, requestdomain);
@@ -466,7 +467,7 @@ NoFix.handle_new_cookie = function(cookie, requestdomain)
     // The reason we add the cookie regardless of whether it's a session
     // cookie is that later adaptations/configuration settings might need
     // the cookie anyhow.
-    NoFix.add_cookie(cookiedomain, cookie);
+    return NoFix.add_cookie(cookiedomain, cookie);
 }
 
 NoFix.cookie_is_allowed = function(domain, cookieName, cookieValue)
@@ -539,6 +540,7 @@ NoFix.httpResponseObserver =
         if (topic != "http-on-examine-response") // Not a response
             return;
         NoFix.nresponses++;
+        NoFix.log("New response");
         var httpChannel = subject.QueryInterface(Components.interfaces.nsIHttpChannel);
         // Search for cookies being set
         try {
@@ -546,16 +548,28 @@ NoFix.httpResponseObserver =
         } catch (exception) {// No cookies set
             return;
         }
+        NoFix.log("Containing cookies");
         var start = new Date();
         // If we got this far, cookies were found
         NoFix.ncookieresponses++;
         // Get the domain where the request came from            remove port
         var requestdomain = httpChannel.getRequestHeader("Host").split(':')[0];
+        // This variable will contain a modified response header that treats added cookies as HttpOnly
+        var newResponseHeader = ""
         // Iterate over all cookies found
         for (i in cookies) {
             var cookie = cookies[i];
-            NoFix.handle_new_cookie(cookies[i], requestdomain);
+            var added = NoFix.handle_new_cookie(cookies[i], requestdomain);
+            if (NoFix.prefManager.getBoolPref("extensions.nofix.preventhijacking")) { 
+            	if (added)
+            		newResponseHeader += cookie + "; HttpOnly" + "\n";
+            	else
+            		newResponseHeader += cookie + "\n";
+    		}
         }
+        if (NoFix.prefManager.getBoolPref("extensions.nofix.preventhijacking")) {
+        	httpChannel.setResponseHeader("Set-Cookie", newResponseHeader, false);
+    	}
         var end = new Date();
         delay = end.getTime() - start.getTime()
         NoFix.responseDelays += delay
