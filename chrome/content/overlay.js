@@ -403,7 +403,7 @@ NoFix.is_session_cookie = function(cookieName, cookieValue)
     }
     
     // Check if the cookie name is a well-known SID name
-    const known_sid = ['phpsessid','aspsessionid', 'asp.net_session', 'jspsession','aspxanonymous'];
+    const known_sid = ['phpsessid','aspsessionid', 'asp.net_sessionid', 'jspsessionid', 'jsessionid'];
     for (i in known_sid) {
         if (cookieName == known_sid[i])
             return true;
