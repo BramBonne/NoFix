@@ -347,7 +347,7 @@ NoFix.encoding_size_score = function(string)
 	
 	var charset = 0;
     
-	var checkedstring = string//.substring(0, string.length);
+	var checkedstring = string;
 	var newstring = checkedstring.replace(/[a-z]+/g,'');
 	if (newstring.length < checkedstring.length) {
 		checkedstring = newstring;
