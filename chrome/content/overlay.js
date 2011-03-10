@@ -431,6 +431,8 @@ NoFix.add_cookie = function(domain, cookie)
     NoFix.cookiesetcount++;
     var split1 = cookie.indexOf('=');
     var split2 = cookie.indexOf(';');
+    if (split2 == -1) // Cookie didn't end in ';'
+    	split2 = cookie.length;
     if (split2 <= split1) {
     	NoFix.log("Probably an evil cookie from " + domain + ": " + cookie, 1);
     	return false;
