@@ -340,14 +340,11 @@ NoFix.encoding_size_score = function(string)
 { // Returns the number of bits that would be neede to encode the string
   // Adapted from Wannes Meert's randomness.py
   // This function is used for calculating whether a string is possibly a session cookie
-    // Randomness constants
-	const punctuation = "~!#%^@&$*_()?-+=";
-	const ascii_lowercase = "abcdefghijklmnopqrstuvwxyz";
-	const ascii_uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	
+    // Number of characters in the character set up until now
 	var charset = 0;
-    
+	// Part that is left after a certain number of checks have been performed
 	var checkedstring = string;
+	
 	var newstring = checkedstring.replace(/[a-z]+/g,'');
 	if (newstring.length < checkedstring.length) {
 		checkedstring = newstring;
