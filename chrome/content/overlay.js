@@ -387,9 +387,11 @@ NoFix.is_session_cookie = function(cookieName, cookieValue)
   // This code was adapted from code found in SessionShield by Nick Nikiforakis
     cookieName = cookieName.toLowerCase();
     
-    // Make an exception for web analysis (e.g. Google's analytics) cookies
+    // Make an exception for web analysis (e.g. Google's analytics, YWA) cookies
     // because they are set via JavaScript and fetched via HTTP
-    if (/^__utm[abczvkx]/.exec(cookieName)) {
+    if (/^__utm[abczvkx]$/.exec(cookieName) ||
+    	/^fpc[0-9]*$/.exec(cookieName) ||
+    	/^GMAIL_STAT_/) {
         return false;
     }
     // Check if the cookie is a well-known *non*-SID name
