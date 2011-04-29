@@ -391,7 +391,7 @@ NoFix.is_session_cookie = function(cookieName, cookieValue)
     // because they are set via JavaScript and fetched via HTTP
     if (/^__utm[abczvkx]$/.exec(cookieName) ||
     	/^fpc[0-9]*$/.exec(cookieName) ||
-    	/^GMAIL_STAT_/) {
+    	/^GMAIL_STAT_/.exec(cookieName)) {
         return false;
     }
     // Check if the cookie is a well-known *non*-SID name
