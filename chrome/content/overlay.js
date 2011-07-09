@@ -5,7 +5,6 @@ var NoFix = {};
 
 NoFix.LOG_LEVEL = 1; //0: everything; 0.5: passing & blocking; 1: warning; 2: error; 3: nothing
 NoFix.log_subdomain_cookies = false; // Whether it should be logged when a website sets a cookie for its parent domain (file logging must be enabled for this)
-NoFix.log_delays = true; // Whether delays incurred by the extension should be logged
 NoFix.TEST_PLUGIN = false; // Will run some tests and output the result in an alert before starting FF
 
 // Database
@@ -21,17 +20,8 @@ NoFix.logFile = null;
 // Private browsing mode (use different database while the user is in this mode)
 NoFix.private_browsing = false;
 
-// Profiling
-NoFix.requestDelays = 0;
-NoFix.responseDelays = 0;
-NoFix.singleRequestDelays = 0;
-NoFix.singleResponseDelays = 0;
-NoFix.nrequests = 0;
-NoFix.nresponses = 0;
+// Logging
 NoFix.cookiesetcount = 0;
-NoFix.ncookierequests = 0;
-NoFix.ncookieresponses = 0;
-NoFix.nsinglerequests = 0;
 
 NoFix.log = function(msg, level)
 { // Log messages to the console in firefox
@@ -72,18 +62,6 @@ NoFix.log_subdomain_cookie = function(subdomain, parentdomain)
     if (NoFix.prefManager.getBoolPref("extensions.nofix.logtofile") && NoFix.log_subdomain_cookies && !NoFix.private_browsing) {
         logString = "S;" + subdomain + ";" + parentdomain + ";" + cookiesetcount + "=\n";
         dump(logString);
-        NoFix.logFile.write(logString, logString.length);
-    }
-}
-
-NoFix.log_delay = function(millisecs, domain, isRequest)
-{ // Log delays incurred by the extension
-    if (NoFix.prefManager.getBoolPref("extensions.nofix.logtofile") && NoFix.log_delays) {
-        if (isRequest)
-            logString = "D"
-        else
-            logString = "d"
-        logString += ";"+millisecs+";"+domain+"=\n";
         NoFix.logFile.write(logString, logString.length);
     }
 }
@@ -488,7 +466,6 @@ NoFix.httpRequestObserver =
             NoFix.log("Not a HTTP request, while httpRequestObserver was called: " + subject + ", " + topic, 0.5);
             return;
         }
-        NoFix.nrequests++;
         var httpChannel = subject.QueryInterface(Components.interfaces.nsIHttpChannel);
         var cookieSvc = Components.classes["@mozilla.org/cookieService;1"].getService(Components.interfaces.nsICookieService);
         //                                                  strip port
@@ -499,13 +476,9 @@ NoFix.httpRequestObserver =
             // No cookie sent with the request, nothing to be done
             return;
         }
-        NoFix.ncookierequests++;
-        var start = new Date();
         var newCookie = "";
         var cookies = originalCookie.split(";");
         for (i in cookies) {
-        	NoFix.nsinglerequests++;
-        	single_start = new Date();
             var cookie = cookies[i];
             // Clean up the cookie, strip whitespace
             cookie = cookie.replace(/^\s/,'').replace(/\s$/,'');
@@ -520,14 +493,8 @@ NoFix.httpRequestObserver =
                 NoFix.log("Cookie was blocked: " + cookie + " for domain " + domain, 1);
                 NoFix.log_file_UI(cookieName, domain, false);
             }
-            single_end = new Date();
-            NoFix.singleRequestDelays += single_end.getTime() - single_start.getTime()
         }
         httpChannel.setRequestHeader("Cookie", newCookie, false);
-        var end = new Date();
-        delay = end.getTime() - start.getTime()
-        NoFix.requestDelays += delay
-        NoFix.log_delay(delay, domain, true);
     }
 };
 
@@ -537,7 +504,6 @@ NoFix.httpResponseObserver =
     {
         if (topic != "http-on-examine-response") // Not a response
             return;
-        NoFix.nresponses++;
         NoFix.log("New response");
         var httpChannel = subject.QueryInterface(Components.interfaces.nsIHttpChannel);
         // Search for cookies being set
@@ -547,9 +513,7 @@ NoFix.httpResponseObserver =
             return;
         }
         NoFix.log("Containing cookies");
-        var start = new Date();
         // If we got this far, cookies were found
-        NoFix.ncookieresponses++;
         // Get the domain where the request came from            remove port
         var requestdomain = httpChannel.getRequestHeader("Host").split(':')[0];
         // This variable will contain a modified response header that treats added cookies as HttpOnly
@@ -570,10 +534,6 @@ NoFix.httpResponseObserver =
         if (NoFix.prefManager.getBoolPref("extensions.nofix.preventhijacking")) {
         	httpChannel.setResponseHeader("Set-Cookie", newResponseHeader, false);
     	}
-        var end = new Date();
-        delay = end.getTime() - start.getTime()
-        NoFix.responseDelays += delay
-        NoFix.log_delay(delay, requestdomain, false);
     }
 };
 
